@@ -23,7 +23,8 @@ if sys.platform == 'win32':
 # ============================================================================
 
 # Railway Server URL (update this with your Railway URL)
-RAILWAY_URL = "https://your-columbia-bot.up.railway.app"
+# IMPORTANT: Remove trailing slash, Railway URL should NOT end with /
+RAILWAY_URL = "https://columbia-submission-bot-production.up.railway.app"
 
 # Local Server URL (for testing locally)
 LOCAL_URL = "http://localhost:5001"
@@ -74,7 +75,7 @@ def get_owner_test_data():
             "person_entering_risk": "Jane Smith",
             "person_entering_risk_email": "jane.smith@example.com",
             "company_name": "Smith Enterprises LLC",
-            "mailing_address": "390 Canebrake Rd Savannah GA 31419-9000",
+            "mailing_address": "4964 lavista road tucker GA",
             
             # Optional fields
             "dba": "Smith DBA",
@@ -110,8 +111,13 @@ def get_minimal_data():
 
 def check_server_health():
     """Check if server is running"""
+    # Remove trailing slash if present
+    server_url = SERVER_URL.rstrip('/')
+    
     try:
-        response = requests.get(f"{SERVER_URL}/health", timeout=10)
+        health_url = f"{server_url}/health"
+        print(f"   Checking: {health_url}")
+        response = requests.get(health_url, timeout=10)
         if response.status_code == 200:
             health_data = response.json()
             print(f"✅ Server is healthy")
@@ -121,25 +127,46 @@ def check_server_health():
             return True
         else:
             print(f"❌ Server health check failed: {response.status_code}")
+            print(f"   Response: {response.text}")
             return False
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection Error: Cannot reach server")
+        print(f"   URL: {server_url}")
+        print(f"\n💡 Troubleshooting:")
+        print(f"   1. Check if Railway service is deployed and running")
+        print(f"   2. Verify the Railway URL is correct (no trailing slash)")
+        print(f"   3. Make sure the service is publicly accessible:")
+        print(f"      - Go to Railway dashboard → Your service → Settings → Networking")
+        print(f"      - Ensure 'Generate Domain' is enabled")
+        print(f"      - Copy the exact public URL (without trailing slash)")
+        print(f"   4. Check Railway deployment logs for errors")
+        return False
+    except requests.exceptions.Timeout:
+        print(f"❌ Request Timeout: Server took too long to respond")
+        print(f"   URL: {server_url}")
+        return False
     except Exception as e:
-        print(f"❌ Server not available: {e}")
-        print(f"   Make sure the server is running at: {SERVER_URL}")
+        print(f"❌ Error: {e}")
+        print(f"   URL: {server_url}")
+        print(f"   Make sure the server is running and accessible")
         return False
 
 def test_webhook(payload, test_name="Test"):
     """Test webhook with given payload"""
+    # Remove trailing slash if present
+    server_url = SERVER_URL.rstrip('/')
+    
     print("\n" + "=" * 80)
     print(f"TEST: {test_name}")
     print("=" * 80)
     
-    print(f"\n📤 Sending request to: {SERVER_URL}/webhook")
+    print(f"\n📤 Sending request to: {server_url}/webhook")
     print(f"   Task ID: {payload.get('task_id')}")
     print(f"   Fields: {list(payload.get('quote_data', {}).keys())}")
     
     try:
         response = requests.post(
-            f"{SERVER_URL}/webhook",
+            f"{server_url}/webhook",
             json=payload,
             headers={"Content-Type": "application/json"},
             timeout=30
@@ -152,7 +179,7 @@ def test_webhook(payload, test_name="Test"):
             task_id = response_data.get("task_id")
             print(f"✅ Task accepted!")
             print(f"   Task ID: {task_id}")
-            print(f"   Status URL: {SERVER_URL}/task/{task_id}/status")
+            print(f"   Status URL: {server_url}/task/{task_id}/status")
             
             # Poll for status
             print(f"\n⏳ Waiting for task to complete (this may take 2-5 minutes)...")
@@ -166,7 +193,7 @@ def test_webhook(payload, test_name="Test"):
                 
                 try:
                     status_response = requests.get(
-                        f"{SERVER_URL}/task/{task_id}/status",
+                        f"{server_url}/task/{task_id}/status",
                         timeout=10
                     )
                     if status_response.status_code == 200:
@@ -221,10 +248,12 @@ def test_webhook(payload, test_name="Test"):
 
 def main():
     """Run all tests"""
+    server_url = SERVER_URL.rstrip('/')
+    
     print("\n" + "=" * 80)
     print("COLUMBIA AUTOMATION - RAILWAY DEPLOYMENT TEST")
     print("=" * 80)
-    print(f"\nServer URL: {SERVER_URL}")
+    print(f"\nServer URL: {server_url}")
     
     # Check server health
     if not check_server_health():

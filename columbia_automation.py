@@ -8,7 +8,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 from config import (
     COLUMBIA_USERNAME, COLUMBIA_PASSWORD, COLUMBIA_LOGIN_URL, COLUMBIA_QUOTE_URL,
-    BROWSER_HEADLESS, BROWSER_TIMEOUT, SESSION_DIR, SCREENSHOT_DIR
+    BROWSER_HEADLESS, BROWSER_TIMEOUT, SESSION_DIR, SCREENSHOT_DIR, TRACE_DIR, ENABLE_TRACING
 )
 
 logging.basicConfig(
@@ -54,7 +54,15 @@ class ColumbiaAutomation:
         self.screenshot_dir = SCREENSHOT_DIR / task_id
         self.screenshot_dir.mkdir(parents=True, exist_ok=True)
         
+        # Trace settings (like Guard)
+        self.enable_tracing = ENABLE_TRACING
+        self.trace_path = None
+        if self.enable_tracing:
+            self.trace_path = TRACE_DIR / f"{self.trace_id}.zip"
+        
         logger.info(f"ColumbiaAutomation initialized - Task ID: {task_id}, Trace ID: {self.trace_id}")
+        if self.enable_tracing:
+            logger.info(f"Trace will be saved to: {self.trace_path}")
         logger.info(f"Quote Data received: {quote_data}")
         logger.info(f"Person Entering Risk: {quote_data.get('person_entering_risk', 'NOT PROVIDED')}")
         logger.info(f"Email: {quote_data.get('person_entering_risk_email', 'NOT PROVIDED')}")
@@ -78,6 +86,8 @@ class ColumbiaAutomation:
         
         logger.info(f"Using browser data from: {self.session_dir}")
         logger.info("✅ Persistent session enabled - cookies will be saved automatically")
+        if self.enable_tracing:
+            logger.info(f"Tracing ENABLED - will save to: {self.trace_path}")
         
         # Launch persistent context (automatically saves cookies and session data)
         self.context = await self.playwright.chromium.launch_persistent_context(
@@ -87,6 +97,11 @@ class ColumbiaAutomation:
             viewport={'width': 1920, 'height': 1080},
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         )
+        
+        # Start tracing if enabled (like Guard)
+        if self.enable_tracing:
+            await self.context.tracing.start(screenshots=True, snapshots=True, sources=True)
+            logger.info("Trace recording started")
         
         # Get the first page (or create new one)
         pages = self.context.pages
@@ -2921,9 +2936,22 @@ class ColumbiaAutomation:
             await self.close()
     
     async def close(self):
-        """Close browser and cleanup (cookies are automatically saved by persistent context)"""
+        """Close browser, save trace, and cleanup (cookies are automatically saved by persistent context)"""
         logger.info("Closing browser...")
         try:
+            # Stop and save trace if enabled (like Guard)
+            if self.enable_tracing and self.context:
+                logger.info(f"Stopping trace recording and saving to: {self.trace_path}")
+                await self.context.tracing.stop(path=str(self.trace_path))
+                
+                # Verify trace file was created
+                if self.trace_path.exists():
+                    file_size = self.trace_path.stat().st_size
+                    logger.info(f"✅ Trace saved successfully: {self.trace_path} ({file_size} bytes)")
+                    logger.info(f"View trace with: playwright show-trace {self.trace_path}")
+                else:
+                    logger.warning(f"⚠️ Trace file not found at: {self.trace_path}")
+            
             # With persistent context, we just close the context
             # Cookies and session data are automatically saved
             if self.context:
@@ -2932,7 +2960,7 @@ class ColumbiaAutomation:
                 await self.playwright.stop()
             logger.info("✅ Browser closed - cookies and session saved to persistent storage")
         except Exception as e:
-            logger.error(f"Error closing browser: {e}")
+            logger.error(f"Error closing browser: {e}", exc_info=True)
 
 
 async def main():

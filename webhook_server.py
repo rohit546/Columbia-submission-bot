@@ -391,13 +391,28 @@ def queue_status():
 
 @app.route('/trace/<task_id>', methods=['GET'])
 def get_trace(task_id: str):
-    """Download trace file for a specific task"""
+    """
+    Download trace file for a specific task or company name
+    Supports:
+    - Task ID: /trace/columbia_20231222_123456
+    - Company name (sanitized): /trace/test_company_llc
+    - Company name (original): Will be sanitized automatically
+    """
     try:
-        # Try multiple trace file patterns
+        # Sanitize task_id if it looks like a company name (contains spaces or special chars)
+        # If it's already sanitized (no spaces, lowercase), use as-is
+        sanitized_id = task_id.lower()
+        if any(c in task_id for c in [' ', '.', ',', '&', '-', '@']):
+            # Contains special chars, sanitize it
+            sanitized_id = "".join(c if c.isalnum() or c == '_' else "_" for c in task_id)[:30].lower()
+        
+        # Try multiple trace file patterns (like Guard)
         trace_candidates = [
-            TRACE_DIR / f"{task_id}.zip",
-            TRACE_DIR / f"default.zip",
-            *list(TRACE_DIR.glob(f"*{task_id}*.zip")),
+            TRACE_DIR / f"{sanitized_id}.zip",  # Sanitized company name
+            TRACE_DIR / f"{task_id}.zip",  # Original task_id
+            TRACE_DIR / f"default.zip",  # Default trace
+            *list(TRACE_DIR.glob(f"*{sanitized_id}*.zip")),  # Any file containing sanitized_id
+            *list(TRACE_DIR.glob(f"*{task_id}*.zip")),  # Any file containing task_id
         ]
         
         # Find the first existing trace file
@@ -408,13 +423,15 @@ def get_trace(task_id: str):
                 break
         
         if not trace_path:
-            logger.warning(f"Trace not found for task: {task_id}")
+            logger.warning(f"Trace not found for: {task_id} (sanitized: {sanitized_id})")
+            logger.info(f"Searched paths: {[str(p) for p in trace_candidates[:5]]}")
             return jsonify({
                 "status": "not_found",
-                "message": f"Trace not found for task {task_id}"
+                "message": f"Trace not found for {task_id}",
+                "searched": sanitized_id
             }), 404
         
-        logger.info(f"Serving trace for task {task_id}: {trace_path}")
+        logger.info(f"Serving trace for {task_id}: {trace_path}")
         return send_file(
             str(trace_path),
             mimetype='application/zip',
@@ -422,7 +439,7 @@ def get_trace(task_id: str):
             download_name=f"{trace_path.name}"
         )
     except Exception as e:
-        logger.error(f"Error serving trace for task {task_id}: {e}", exc_info=True)
+        logger.error(f"Error serving trace for {task_id}: {e}", exc_info=True)
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -479,8 +496,19 @@ async def run_automation_task(task_id: str, quote_data: dict):
     logger.info(f"[TASK {task_id}] Starting Columbia automation")
     logger.info(f"[TASK {task_id}] Quote Data: {json.dumps(quote_data, indent=2)}")
     
-    # Create trace_id from task_id
-    trace_id = f"columbia_{task_id}"
+    # Create trace_id from company name if available
+    trace_id = None
+    if quote_data and quote_data.get('company_name'):
+        company_name = quote_data.get('company_name', '')
+        # Sanitize company name for filename (remove special chars, limit length)
+        safe_company = "".join(c if c.isalnum() else "_" for c in company_name)[:30].lower()
+        trace_id = safe_company
+        logger.info(f"[TASK {task_id}] Trace ID from company name: {trace_id}")
+    
+    # Fallback to task_id if no company name
+    if not trace_id:
+        trace_id = f"columbia_{task_id}"
+        logger.info(f"[TASK {task_id}] Trace ID from task_id: {trace_id}")
     
     try:
         # Update status to running
