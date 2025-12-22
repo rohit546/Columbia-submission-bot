@@ -1,0 +1,76 @@
+"""
+Configuration file for Columbia Insurance automation
+Stores paths, credentials, and settings
+"""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Base directories
+BASE_DIR = Path(__file__).parent
+LOG_DIR = BASE_DIR / "logs"
+TRACE_DIR = BASE_DIR / "traces"
+SESSION_DIR = BASE_DIR / "sessions"
+SCREENSHOT_DIR = LOG_DIR / "screenshots"
+DEBUG_DIR = BASE_DIR / "debug"
+
+# Create directories if they don't exist
+for directory in [LOG_DIR, TRACE_DIR, SESSION_DIR, SCREENSHOT_DIR, DEBUG_DIR]:
+    directory.mkdir(parents=True, exist_ok=True)
+
+# Columbia credentials (from environment variables)
+COLUMBIA_USERNAME = os.getenv('COLUMBIA_USERNAME', 'agt41297')
+COLUMBIA_PASSWORD = os.getenv('COLUMBIA_PASSWORD', 'Columbia41297')
+
+# Webhook server settings
+WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', '0.0.0.0')
+# Railway provides PORT env var automatically, fall back to 5001 for local dev
+WEBHOOK_PORT = int(os.getenv('PORT', os.getenv('WEBHOOK_PORT', 5001)))
+WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/webhook')
+
+# Browser settings
+# Force headless on Linux/server environments (no display available)
+import platform
+_is_linux = platform.system() == 'Linux'
+_has_display = bool(os.getenv('DISPLAY'))
+_headless_env = os.getenv('BROWSER_HEADLESS', '').lower()
+
+if _headless_env in ('true', '1', 'yes'):
+    BROWSER_HEADLESS = True
+elif _headless_env in ('false', '0', 'no'):
+    BROWSER_HEADLESS = False
+else:
+    # Auto-detect: Force headless on Linux without display (Railway, Docker, etc.)
+    BROWSER_HEADLESS = _is_linux and not _has_display
+
+BROWSER_TIMEOUT = int(os.getenv('BROWSER_TIMEOUT', 60000))  # 60 seconds
+
+# Columbia portal URLs
+COLUMBIA_LOGIN_URL = os.getenv('COLUMBIA_LOGIN_URL', 'https://portal.colinsgrp.com/public-site/Login-Legacy.html?')
+COLUMBIA_QUOTE_URL = os.getenv('COLUMBIA_QUOTE_URL', 'https://portal.colinsgrp.com/AgentPortal/ReactAppServlet?application=TouchPoint&prod=true')
+
+# Max concurrent workers
+MAX_WORKERS = int(os.getenv('MAX_WORKERS', 3))
+
+# Trace settings
+ENABLE_TRACING = os.getenv('ENABLE_TRACING', 'true').lower() == 'true'
+TRACE_SCREENSHOTS = True
+TRACE_SNAPSHOTS = True
+
+# File cleanup settings (in days)
+CLEANUP_LOGS_DAYS = int(os.getenv('CLEANUP_LOGS_DAYS', 7))
+CLEANUP_TRACES_DAYS = int(os.getenv('CLEANUP_TRACES_DAYS', 30))
+CLEANUP_SESSIONS_DAYS = int(os.getenv('CLEANUP_SESSIONS_DAYS', 7))
+
+print(f"Columbia Automation Config Loaded:")
+print(f"  - Base Directory: {BASE_DIR}")
+print(f"  - Logs: {LOG_DIR}")
+print(f"  - Traces: {TRACE_DIR}")
+print(f"  - Sessions: {SESSION_DIR}")
+print(f"  - Webhook Port: {WEBHOOK_PORT}")
+print(f"  - Browser Headless: {BROWSER_HEADLESS}")
+print(f"  - Max Workers: {MAX_WORKERS}")
+
