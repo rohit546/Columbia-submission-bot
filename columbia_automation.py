@@ -2209,14 +2209,14 @@ class ColumbiaAutomation:
                 logger.warning(f"⚠️ Could not select Roof Type 'Other': {e}")
             
             # ----------------------------------------------------------------
-            # Fill "Number of Stories" with "2" (default)
+            # Fill "Number of Stories" with "1" (default)
             # ----------------------------------------------------------------
-            logger.info("Filling Number of Stories with: 2...")
+            logger.info("Filling Number of Stories with: 1...")
             try:
                 await asyncio.sleep(0.3)
                 
-                # Get number of stories from quote_data (default to "2")
-                number_of_stories = self.quote_data.get('number_of_stories', self.quote_data.get('stories', '2'))
+                # Get number of stories from quote_data (default to "1")
+                number_of_stories = self.quote_data.get('number_of_stories', self.quote_data.get('stories', '1'))
                 
                 try:
                     stories_input = self.page.locator('#numberOfStories').first

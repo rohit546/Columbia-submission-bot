@@ -187,8 +187,8 @@ This document lists all fields, dropdowns, and radio buttons filled during the C
 
 27. **Number of Stories**
     - **Field Name:** `numberOfStories`
-    - **Value:** `"2"` (default)
-    - **Source:** `quote_data['number_of_stories']` or `quote_data['stories']` (defaults to "2")
+    - **Value:** `"1"` (default)
+    - **Source:** `quote_data['number_of_stories']` or `quote_data['stories']` (defaults to "1")
 
 28. **Square Footage**
     - **Field Name:** `squareFootage`
@@ -220,7 +220,7 @@ This document lists all fields, dropdowns, and radio buttons filled during the C
 7. Gross Sales (`grossSales`) - From `quote_data['gross_sales']` or `quote_data['gross_sales_amount']` (default: "100000")
 8. Number Of Mortgagees/Loss Payees (`numberOfMortgageesLossPayees`) - Hardcoded: "0"
 9. Original Construction Year (`constructionYear`) - Auto-calculated or from `quote_data['construction_year']`
-10. Number of Stories (`numberOfStories`) - From `quote_data['number_of_stories']` or `quote_data['stories']` (default: "2")
+10. Number of Stories (`numberOfStories`) - From `quote_data['number_of_stories']` or `quote_data['stories']` (default: "1")
 11. Square Footage (`squareFootage`) - From `quote_data['square_footage']` or `quote_data['square_feet']` (default: "3500")
 12. Building Limit (`buildingLimit`) - From `quote_data['building_limit']` or `quote_data['building_value']` (default: "500000") - **Only if owner**
 13. Business Personal Property Limit (`bppLimit`) - From `quote_data['bpp_limit']` or `quote_data['business_personal_property_limit']` (default: "70000")
@@ -264,7 +264,7 @@ Based on the analysis, here are the fields that should be accepted from external
 8. `applicant_is` (or `applicant_type`) - Applicant Type: "tenant" or "owner" (defaults to "tenant")
 9. `gross_sales` (or `gross_sales_amount`) - Gross Sales (defaults to "100000")
 10. `construction_year` (or `original_construction_year`) - Construction Year (if not provided, auto-calculated: current year - 20)
-11. `number_of_stories` (or `stories`) - Number of Stories (defaults to "2")
+11. `number_of_stories` (or `stories`) - Number of Stories (defaults to "1")
 12. `square_footage` (or `square_feet`) - Square Footage (defaults to "3500")
 13. `building_limit` (or `building_value`) - Building Limit (defaults to "500000", only used if applicant is "owner")
 14. `bpp_limit` (or `business_personal_property_limit`) - Business Personal Property Limit (defaults to "70000")
@@ -308,7 +308,7 @@ These fields are always set to the same value and don't need user input:
     "applicant_is": "tenant",
     "gross_sales": "100000",
     "construction_year": "2005",
-    "number_of_stories": "2",
+    "number_of_stories": "1",
     "square_footage": "3500",
     "bpp_limit": "70000"
   }

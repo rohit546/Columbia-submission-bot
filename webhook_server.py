@@ -191,7 +191,7 @@ def webhook_receiver():
             "applicant_is": "tenant",  // or "applicant_type" - optional - defaults to "tenant" ("tenant" or "owner")
             "gross_sales": "100000",  // or "gross_sales_amount" - optional - defaults to "100000"
             "construction_year": "2005",  // or "original_construction_year" - optional - auto-calculated if not provided
-            "number_of_stories": "2",  // or "stories" - optional - defaults to "2"
+            "number_of_stories": "1",  // or "stories" - optional - defaults to "1"
             "square_footage": "3500",  // or "square_feet" - optional - defaults to "3500"
             "building_limit": "500000",  // or "building_value" - optional - defaults to "500000" (only used if applicant_is is "owner")
             "bpp_limit": "70000"  // or "business_personal_property_limit" - optional - defaults to "70000"
