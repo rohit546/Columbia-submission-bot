@@ -2216,7 +2216,11 @@ class ColumbiaAutomation:
                 await asyncio.sleep(0.3)
                 
                 # Get number of stories from quote_data (default to "1")
-                number_of_stories = self.quote_data.get('number_of_stories', self.quote_data.get('stories', '1'))
+                # Handle empty string case - if empty or None, default to "1"
+                number_of_stories = self.quote_data.get('number_of_stories') or self.quote_data.get('stories') or '1'
+                # Ensure it's not an empty string after stripping whitespace
+                if not str(number_of_stories).strip():
+                    number_of_stories = '1'
                 
                 try:
                     stories_input = self.page.locator('#numberOfStories').first

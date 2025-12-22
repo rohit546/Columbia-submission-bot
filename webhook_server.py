@@ -284,6 +284,11 @@ def webhook_receiver():
         if quote_data.get('stories') and not quote_data.get('number_of_stories'):
             quote_data['number_of_stories'] = quote_data.pop('stories')
         
+        # Handle empty string for number_of_stories - default to "1"
+        if quote_data.get('number_of_stories') == '' or (quote_data.get('number_of_stories') and not str(quote_data.get('number_of_stories')).strip()):
+            quote_data['number_of_stories'] = '1'
+            logger.info(f"[COLUMBIA] Empty number_of_stories provided, defaulting to '1'")
+        
         # square_feet -> square_footage
         if quote_data.get('square_feet') and not quote_data.get('square_footage'):
             quote_data['square_footage'] = quote_data.pop('square_feet')
