@@ -30,13 +30,27 @@ def test_columbia_automation():
     
     print("\n✅ Server is running")
     
-    # Sample quote data (to be updated based on actual form structure)
+    # Sample quote data with all user-provided fields
     payload = {
         "action": "start_automation",
         "task_id": "test_columbia_001",
         "quote_data": {
-            # Add quote form fields here once form structure is known
-            "test_field": "test_value"
+            # Required fields
+            "person_entering_risk": "John Doe",
+            "person_entering_risk_email": "john.doe@example.com",
+            "company_name": "Test Company LLC",
+            "mailing_address": "280 Griffin Street, McDonough, GA 30253",
+            
+            # Optional fields (with defaults)
+            "dba": "Test DBA",
+            "business_type": "LIMITED LIABILITY COMPANY",
+            "applicant_is": "tenant",  # or "owner"
+            "gross_sales": "100000",
+            "construction_year": "2005",
+            "number_of_stories": "2",
+            "square_footage": "3500",
+            "building_limit": "500000",  # Only used if applicant_is is "owner"
+            "bpp_limit": "70000"
         }
     }
     

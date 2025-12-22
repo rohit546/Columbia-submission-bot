@@ -60,10 +60,54 @@ python test_local.py
 
 ## Deployment
 
-Deploy to Railway using the Dockerfile. Railway will automatically:
-- Set `PORT` environment variable
-- Run in headless mode
-- Handle health checks
+### Railway Deployment
+
+1. **Create a new Railway project:**
+   - Go to [Railway.app](https://railway.app)
+   - Create a new project
+   - Connect your GitHub repository (or deploy from local)
+
+2. **Configure Environment Variables in Railway:**
+   - Go to your Railway project → Variables
+   - Add the following environment variables:
+     ```
+     COLUMBIA_USERNAME=agt41297
+     COLUMBIA_PASSWORD=Columbia41297
+     BROWSER_HEADLESS=true
+     MAX_WORKERS=3
+     ```
+   - **Note:** Railway automatically provides `PORT` env var, don't set it manually
+
+3. **Deploy:**
+   - Railway will automatically detect the `Dockerfile` and `railway.json`
+   - The app will build and deploy automatically
+   - Railway will assign a public URL (e.g., `https://your-app.up.railway.app`)
+
+4. **Test Railway Deployment:**
+   ```bash
+   # Update SERVER_URL in test_railway.py with your Railway URL
+   python test_railway.py
+   ```
+
+### Railway Configuration
+
+- **Dockerfile:** Automatically builds the app with all dependencies
+- **railway.json:** Configures Railway deployment settings
+- **PORT:** Railway automatically provides `PORT` env var (config.py handles it)
+- **Headless Mode:** Automatically enabled on Railway (Linux environment)
+- **Health Check:** `/health` endpoint for Railway health checks
+
+### Environment Variables
+
+Required for Railway:
+- `COLUMBIA_USERNAME` - Columbia portal username
+- `COLUMBIA_PASSWORD` - Columbia portal password
+- `BROWSER_HEADLESS=true` - Set to true for Railway (auto-detected on Linux)
+
+Optional:
+- `MAX_WORKERS=3` - Number of concurrent tasks (default: 3)
+- `ENABLE_TRACING=true` - Enable Playwright tracing (default: true)
+- `CLEANUP_LOGS_DAYS=7` - Log retention days (default: 7)
 
 ## Notes
 

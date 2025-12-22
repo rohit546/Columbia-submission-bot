@@ -58,9 +58,11 @@ EXPOSE 5001
 EXPOSE 8080
 
 # Health check (uses $PORT from Railway or default)
+# Note: Railway provides PORT env var automatically
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import requests; import os; requests.get(f'http://localhost:{os.getenv(\"PORT\", 5001)}/health', timeout=5)" || exit 1
+    CMD python -c "import requests; import os; port = int(os.getenv('PORT', 5001)); requests.get(f'http://localhost:{port}/health', timeout=5)" || exit 1
 
-# Run webhook server - Railway provides $PORT automatically
+# Run webhook server
+# Railway automatically provides PORT env var, config.py handles it
 CMD python webhook_server.py
 

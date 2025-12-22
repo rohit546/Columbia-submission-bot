@@ -178,7 +178,23 @@ def webhook_receiver():
         "action": "start_automation",
         "task_id": "optional_unique_id",
         "quote_data": {
-            // Quote form fields (to be defined based on form structure)
+            // Required fields:
+            "person_entering_risk": "John Doe",  // or "contact_name"
+            "person_entering_risk_email": "john.doe@example.com",  // or "email"
+            "company_name": "Test Company LLC",  // or "business_name"
+            "mailing_address": "280 Griffin Street, McDonough, GA 30253",  // or "address"
+            
+            // Optional fields (have defaults):
+            "dba": "Test DBA",  // or "dba_name" - optional
+            "effective_date": "12/20/2025",  // optional - auto-calculated if not provided
+            "business_type": "LIMITED LIABILITY COMPANY",  // optional - defaults to "LIMITED LIABILITY COMPANY"
+            "applicant_is": "tenant",  // or "applicant_type" - optional - defaults to "tenant" ("tenant" or "owner")
+            "gross_sales": "100000",  // or "gross_sales_amount" - optional - defaults to "100000"
+            "construction_year": "2005",  // or "original_construction_year" - optional - auto-calculated if not provided
+            "number_of_stories": "2",  // or "stories" - optional - defaults to "2"
+            "square_footage": "3500",  // or "square_feet" - optional - defaults to "3500"
+            "building_limit": "500000",  // or "building_value" - optional - defaults to "500000" (only used if applicant_is is "owner")
+            "bpp_limit": "70000"  // or "business_personal_property_limit" - optional - defaults to "70000"
         }
     }
     """
@@ -206,6 +222,85 @@ def webhook_receiver():
         # Extract data
         action = payload.get('action', 'start_automation')
         quote_data = payload.get('quote_data', {})
+        
+        # Validate required fields
+        required_fields = []
+        missing_fields = []
+        
+        # Check for person_entering_risk (or contact_name)
+        if not quote_data.get('person_entering_risk') and not quote_data.get('contact_name'):
+            missing_fields.append('person_entering_risk (or contact_name)')
+        else:
+            # Normalize to person_entering_risk
+            if quote_data.get('contact_name') and not quote_data.get('person_entering_risk'):
+                quote_data['person_entering_risk'] = quote_data.pop('contact_name')
+        
+        # Check for person_entering_risk_email (or email)
+        if not quote_data.get('person_entering_risk_email') and not quote_data.get('email'):
+            missing_fields.append('person_entering_risk_email (or email)')
+        else:
+            # Normalize to person_entering_risk_email
+            if quote_data.get('email') and not quote_data.get('person_entering_risk_email'):
+                quote_data['person_entering_risk_email'] = quote_data.pop('email')
+        
+        # Check for company_name (or business_name)
+        if not quote_data.get('company_name') and not quote_data.get('business_name'):
+            missing_fields.append('company_name (or business_name)')
+        else:
+            # Normalize to company_name
+            if quote_data.get('business_name') and not quote_data.get('company_name'):
+                quote_data['company_name'] = quote_data.pop('business_name')
+        
+        # Check for mailing_address (or address)
+        if not quote_data.get('mailing_address') and not quote_data.get('address'):
+            missing_fields.append('mailing_address (or address)')
+        else:
+            # Normalize to mailing_address
+            if quote_data.get('address') and not quote_data.get('mailing_address'):
+                quote_data['mailing_address'] = quote_data.pop('address')
+        
+        # Return error if required fields are missing
+        if missing_fields:
+            return jsonify({
+                "status": "error",
+                "message": f"Missing required fields: {', '.join(missing_fields)}",
+                "missing_fields": missing_fields
+            }), 400
+        
+        # Normalize optional field aliases
+        # dba_name -> dba
+        if quote_data.get('dba_name') and not quote_data.get('dba'):
+            quote_data['dba'] = quote_data.pop('dba_name')
+        
+        # gross_sales_amount -> gross_sales
+        if quote_data.get('gross_sales_amount') and not quote_data.get('gross_sales'):
+            quote_data['gross_sales'] = quote_data.pop('gross_sales_amount')
+        
+        # original_construction_year -> construction_year
+        if quote_data.get('original_construction_year') and not quote_data.get('construction_year'):
+            quote_data['construction_year'] = quote_data.pop('original_construction_year')
+        
+        # stories -> number_of_stories
+        if quote_data.get('stories') and not quote_data.get('number_of_stories'):
+            quote_data['number_of_stories'] = quote_data.pop('stories')
+        
+        # square_feet -> square_footage
+        if quote_data.get('square_feet') and not quote_data.get('square_footage'):
+            quote_data['square_footage'] = quote_data.pop('square_feet')
+        
+        # building_value -> building_limit
+        if quote_data.get('building_value') and not quote_data.get('building_limit'):
+            quote_data['building_limit'] = quote_data.pop('building_value')
+        
+        # business_personal_property_limit -> bpp_limit
+        if quote_data.get('business_personal_property_limit') and not quote_data.get('bpp_limit'):
+            quote_data['bpp_limit'] = quote_data.pop('business_personal_property_limit')
+        
+        # applicant_type -> applicant_is
+        if quote_data.get('applicant_type') and not quote_data.get('applicant_is'):
+            quote_data['applicant_is'] = quote_data.pop('applicant_type')
+        
+        logger.info(f"[COLUMBIA] Validated quote data: {list(quote_data.keys())}")
         
         if action == 'start_automation':
             # Generate task_id
