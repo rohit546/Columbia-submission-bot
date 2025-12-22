@@ -448,7 +448,7 @@ def get_trace(task_id: str):
 
 @app.route('/traces', methods=['GET'])
 def list_traces():
-    """List all available trace files"""
+    """List all available trace files - returns HTML UI or JSON"""
     try:
         traces = []
         for trace_file in sorted(TRACE_DIR.glob("*.zip"), key=lambda f: f.stat().st_mtime, reverse=True):
@@ -464,6 +464,64 @@ def list_traces():
                 })
             except Exception as e:
                 logger.debug(f"Error getting info for {trace_file}: {e}")
+        
+        # Return HTML if browser request, JSON otherwise
+        if 'text/html' in request.headers.get('Accept', '') or request.args.get('format') != 'json':
+            html = '''<!DOCTYPE html>
+<html><head><title>Columbia Automation - Traces</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;background:#f5f5f5}
+h1{color:#2c3e50;border-bottom:3px solid #3498db;padding-bottom:10px;margin-bottom:20px}
+.info{background:#e8f4f8;padding:15px;border-radius:8px;margin-bottom:20px;line-height:1.6}
+table{width:100%;border-collapse:collapse;background:white;box-shadow:0 2px 5px rgba(0,0,0,0.1);border-radius:8px;overflow:hidden;margin-bottom:20px}
+th{background:#3498db;color:white;padding:12px;text-align:left;font-weight:600}
+td{padding:12px;text-align:left;border-bottom:1px solid #eee}
+tr:hover{background:#f8f9fa}
+tr:last-child td{border-bottom:none}
+code{background:#f1f2f6;padding:2px 6px;border-radius:3px;font-family:'Courier New',monospace;font-size:0.9em}
+.size{color:#7f8c8d;font-weight:500}
+.date{color:#95a5a6;font-size:0.9em}
+.download-btn{background:#27ae60;color:white;padding:8px 16px;border-radius:4px;font-size:0.9em;text-decoration:none;display:inline-block;transition:background 0.2s}
+.download-btn:hover{background:#219a52;text-decoration:none}
+.empty{text-align:center;padding:40px;color:#7f8c8d;background:white;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1)}
+.empty-icon{font-size:48px;margin-bottom:15px}
+.footer{margin-top:30px;text-align:center;color:#95a5a6;font-size:0.85em}
+.footer a{color:#3498db;text-decoration:none;margin:0 10px}
+.footer a:hover{text-decoration:underline}
+</style></head>
+<body>
+<h1>🎯 Columbia Automation - Traces</h1>
+<div class="info">
+<strong>Total:</strong> ''' + str(len(traces)) + ''' traces | <strong>Max stored:</strong> ''' + str(MAX_TRACE_FILES) + '''<br>
+<small>Trace files are named by company name. Only the most recent ''' + str(MAX_TRACE_FILES) + ''' traces are kept.</small>
+</div>'''
+            
+            if traces:
+                html += '''<table>
+<tr><th>Company Name / Trace ID</th><th>Size</th><th>Created</th><th>Action</th></tr>'''
+                for t in traces:
+                    html += f'''<tr>
+<td><code>{t["task_id"]}</code></td>
+<td class="size">{t["size_kb"]} KB</td>
+<td class="date">{t["created_at"][:19].replace('T', ' ')}</td>
+<td><a href="{t["url"]}" class="download-btn">⬇ Download</a></td>
+</tr>'''
+                html += '</table>'
+            else:
+                html += '''<div class="empty">
+<div class="empty-icon">📭</div>
+<strong>No traces available yet.</strong><br>
+Run an automation task to generate trace files.
+</div>'''
+            
+            html += '''
+<div class="footer">
+Columbia Insurance Automation Server | <a href="/health">Health Check</a> | <a href="/tasks">Tasks</a> | <a href="/traces?format=json">JSON API</a>
+</div>
+</body></html>'''
+            return html, 200, {'Content-Type': 'text/html'}
         
         return jsonify({
             "total": len(traces),
