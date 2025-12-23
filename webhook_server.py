@@ -13,10 +13,11 @@ from datetime import datetime
 from pathlib import Path
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+import requests
 from columbia_automation import ColumbiaAutomation
 from config import (
     WEBHOOK_HOST, WEBHOOK_PORT, WEBHOOK_PATH, LOG_DIR, TRACE_DIR, SESSION_DIR,
-    MAX_WORKERS
+    MAX_WORKERS, COVERSHEET_WEBHOOK_URL
 )
 
 # Setup logging
@@ -61,6 +62,89 @@ MAX_TRACE_FILES = 5  # Keep only last 5 trace files
 # Cleanup scheduler thread
 cleanup_thread = None
 cleanup_stop_event = threading.Event()
+
+
+def extract_submission_id(task_id: str) -> str:
+    """
+    Extract submission_id from task_id
+    Format: columbia_{submission_id}_{timestamp} or columbia_{timestamp}
+    Returns submission_id if found, otherwise returns task_id
+    """
+    if not task_id:
+        return None
+    
+    # Try to extract submission_id from format: columbia_{submission_id}_{timestamp}
+    parts = task_id.split('_')
+    if len(parts) >= 3:
+        # Format: columbia_{submission_id}_{timestamp}
+        # Check if middle part looks like a UUID (has dashes) or is a valid submission ID
+        submission_id = parts[1]
+        # If it's a UUID format (has dashes), return it
+        if '-' in submission_id and len(submission_id) > 10:
+            return submission_id
+        # Otherwise, might be a different format, try to return it anyway
+        if len(submission_id) > 5:  # Reasonable length for submission ID
+            return submission_id
+    
+    # If format doesn't match, return task_id as fallback
+    return task_id
+
+
+def notify_coversheet_completion(task_id: str, submission_id: str = None, success: bool = True, 
+                                 result_data: dict = None, error: str = None, error_details: str = None):
+    """
+    Notify Coversheet when automation completes (success or failure)
+    
+    Args:
+        task_id: The task ID that was sent in the original request
+        submission_id: Extract from task_id if not provided
+        success: True if completed successfully, False if failed
+        result_data: Dict with policy_code, quote_url, message (if success)
+        error: Error message string (if failed)
+        error_details: Full error details/stack trace (if failed)
+    """
+    try:
+        # Extract submission_id from task_id if not provided
+        if not submission_id:
+            submission_id = extract_submission_id(task_id)
+        
+        # Prepare payload
+        payload = {
+            "carrier": "columbia",
+            "task_id": task_id,
+            "submission_id": submission_id or task_id,
+            "status": "completed" if success else "failed",
+            "completed_at": datetime.utcnow().isoformat() + "Z"
+        }
+        
+        if success and result_data:
+            payload["result"] = {
+                "policy_code": result_data.get("policy_code"),
+                "quote_url": result_data.get("quote_url"),
+                "message": result_data.get("message", "Automation completed successfully")
+            }
+        else:
+            payload["error"] = error or "Automation failed"
+            if error_details:
+                payload["error_details"] = error_details
+        
+        # Send webhook callback
+        logger.info(f"[WEBHOOK] Notifying Coversheet: {payload['status']} for task {task_id}")
+        response = requests.post(
+            COVERSHEET_WEBHOOK_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        response.raise_for_status()
+        logger.info(f"[WEBHOOK] ✅ Successfully notified Coversheet: {payload['status']}")
+        
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"[WEBHOOK] ⚠️ Failed to notify Coversheet: {e}")
+        # Don't fail the automation if webhook fails - just log it
+    except Exception as e:
+        logger.warning(f"[WEBHOOK] ⚠️ Error notifying Coversheet: {e}")
+        # Don't fail the automation if webhook fails - just log it
 
 
 def cleanup_old_files():
@@ -309,9 +393,16 @@ def webhook_receiver():
         
         if action == 'start_automation':
             # Generate task_id
-            task_id = payload.get('task_id') or f"columbia_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            # If submission_id is provided, use format: columbia_{submission_id}_{timestamp}
+            submission_id = payload.get('submission_id')
+            if submission_id:
+                task_id = payload.get('task_id') or f"columbia_{submission_id}_{int(datetime.now().timestamp())}"
+            else:
+                task_id = payload.get('task_id') or f"columbia_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             logger.info(f"[COLUMBIA] Starting automation task: {task_id}")
+            if submission_id:
+                logger.info(f"[COLUMBIA] Submission ID: {submission_id}")
             logger.info(f"[COLUMBIA] Quote Data: {quote_data}")
             
             # Check worker availability
@@ -323,6 +414,7 @@ def webhook_receiver():
             active_sessions[task_id] = {
                 "status": "queued" if current_workers >= MAX_WORKERS else "running",
                 "task_id": task_id,
+                "submission_id": submission_id,  # Store submission_id for webhook callback
                 "queued_at": datetime.now().isoformat(),
                 "quote_data": quote_data,
                 "queue_position": queue_size + 1 if current_workers >= MAX_WORKERS else 0,
@@ -596,12 +688,47 @@ async def run_automation_task(task_id: str, quote_data: dict):
         
         logger.info(f"[TASK {task_id}] ✅ Automation completed successfully")
         
+        # Notify Coversheet of successful completion
+        # Get submission_id from active_sessions if stored, otherwise extract from task_id
+        submission_id = None
+        if task_id in active_sessions:
+            submission_id = active_sessions[task_id].get('submission_id')
+        
+        notify_coversheet_completion(
+            task_id=task_id,
+            submission_id=submission_id,  # Use stored submission_id or extract from task_id
+            success=True,
+            result_data={
+                "message": "Columbia automation completed successfully",
+                "quote_url": None,  # Columbia doesn't provide quote URL
+                "policy_code": None  # Columbia doesn't provide policy code
+            }
+        )
+        
     except Exception as e:
+        import traceback
+        error_message = str(e)
+        error_details = traceback.format_exc()
+        
         logger.error(f"[TASK {task_id}] ❌ Automation failed: {e}", exc_info=True)
         if task_id in active_sessions:
             active_sessions[task_id]["status"] = "failed"
-            active_sessions[task_id]["error"] = str(e)
+            active_sessions[task_id]["error"] = error_message
             active_sessions[task_id]["failed_at"] = datetime.now().isoformat()
+        
+        # Notify Coversheet of failure
+        # Get submission_id from active_sessions if stored, otherwise extract from task_id
+        submission_id = None
+        if task_id in active_sessions:
+            submission_id = active_sessions[task_id].get('submission_id')
+        
+        notify_coversheet_completion(
+            task_id=task_id,
+            submission_id=submission_id,  # Use stored submission_id or extract from task_id
+            success=False,
+            error=error_message,
+            error_details=error_details
+        )
     finally:
         # Cleanup (already handled in run())
         pass
