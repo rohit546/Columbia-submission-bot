@@ -66,10 +66,11 @@ CLEANUP_TRACES_DAYS = int(os.getenv('CLEANUP_TRACES_DAYS', 30))
 CLEANUP_SESSIONS_DAYS = int(os.getenv('CLEANUP_SESSIONS_DAYS', 7))
 
 # Coversheet webhook callback URL
+# Set to empty string to disable webhook callbacks
 COVERSHEET_WEBHOOK_URL = os.getenv(
     'COVERSHEET_WEBHOOK_URL',
     'https://carrier-submission-tracker-system-for-insurance-production.up.railway.app/api/webhooks/rpa-complete'
-)
+).strip()
 
 print(f"Columbia Automation Config Loaded:")
 print(f"  - Base Directory: {BASE_DIR}")

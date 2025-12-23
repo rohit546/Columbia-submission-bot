@@ -128,8 +128,16 @@ def notify_coversheet_completion(task_id: str, submission_id: str = None, succes
             if error_details:
                 payload["error_details"] = error_details
         
+        # Skip webhook if URL is not configured
+        if not COVERSHEET_WEBHOOK_URL or COVERSHEET_WEBHOOK_URL == '':
+            logger.info(f"[WEBHOOK] Skipping Coversheet notification - URL not configured")
+            return
+        
         # Send webhook callback
         logger.info(f"[WEBHOOK] Notifying Coversheet: {payload['status']} for task {task_id}")
+        logger.info(f"[WEBHOOK] URL: {COVERSHEET_WEBHOOK_URL}")
+        logger.info(f"[WEBHOOK] Payload: {json.dumps(payload, indent=2)}")
+        
         response = requests.post(
             COVERSHEET_WEBHOOK_URL,
             json=payload,
@@ -138,12 +146,21 @@ def notify_coversheet_completion(task_id: str, submission_id: str = None, succes
         )
         response.raise_for_status()
         logger.info(f"[WEBHOOK] ✅ Successfully notified Coversheet: {payload['status']}")
+        logger.info(f"[WEBHOOK] Response: {response.status_code} - {response.text[:200]}")
         
+    except requests.exceptions.HTTPError as e:
+        # More detailed error logging for HTTP errors
+        error_msg = f"HTTP {e.response.status_code}: {e.response.reason}"
+        if e.response.status_code == 404:
+            error_msg += f" - Endpoint not found. Please verify the URL: {COVERSHEET_WEBHOOK_URL}"
+            error_msg += f"\n[WEBHOOK] Response body: {e.response.text[:500]}"
+        logger.warning(f"[WEBHOOK] ⚠️ Failed to notify Coversheet: {error_msg}")
+        # Don't fail the automation if webhook fails - just log it
     except requests.exceptions.RequestException as e:
         logger.warning(f"[WEBHOOK] ⚠️ Failed to notify Coversheet: {e}")
         # Don't fail the automation if webhook fails - just log it
     except Exception as e:
-        logger.warning(f"[WEBHOOK] ⚠️ Error notifying Coversheet: {e}")
+        logger.warning(f"[WEBHOOK] ⚠️ Error notifying Coversheet: {e}", exc_info=True)
         # Don't fail the automation if webhook fails - just log it
 
 
