@@ -1193,10 +1193,10 @@ class ColumbiaAutomation:
             try:
                 await self.page.wait_for_selector('label[for="protectionClass"], label:has-text("Protection Class")', timeout=15000, state="visible")
                 logger.info("✅ Protection Class section appeared")
-                await asyncio.sleep(5)  # Give additional time for options to load
+                await asyncio.sleep(20)  # Give additional time for options to load (20 seconds)
             except:
                 logger.warning("⚠️ Protection Class label not found, continuing anyway...")
-                await asyncio.sleep(5)  # Wait a bit longer
+                await asyncio.sleep(20)  # Wait a bit longer (20 seconds)
             
             logger.info("Selecting Protection Class...")
             try:
