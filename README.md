@@ -21,8 +21,8 @@ playwright install chromium
 
 2. Set environment variables (create `.env` file):
 ```
-COLUMBIA_USERNAME=agt41297
-COLUMBIA_PASSWORD=Columbia41297
+COLUMBIA_USERNAME=
+COLUMBIA_PASSWORD=
 WEBHOOK_PORT=5001
 BROWSER_HEADLESS=true
 ```
